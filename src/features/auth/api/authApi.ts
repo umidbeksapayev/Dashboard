@@ -1,7 +1,4 @@
-
 import axios from "axios";
-
-
 import { axiosInstance } from "@/shared/api/axiosInstance";
 import { endpoints } from "@/shared/api/endpoints";
 import type { AuthUser } from "@/entities/user/types";
