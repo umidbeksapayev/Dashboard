@@ -13,6 +13,7 @@ import { Input } from "@/shared/ui/input";
 
 const schema = z.object({
   identifier: z.string().min(3, "Username yoki email kiriting"),
+  email: z.string().email(),
   password: z.string().min(4),
   fullName: z.string().min(3).optional()
 });
@@ -22,7 +23,7 @@ type FormValues = z.infer<typeof schema>;
 export function LoginForm(): JSX.Element {
   const [mode, setMode] = useState<"login" | "register">("login");
   const navigate = useNavigate();
-  const loginAction = useAuthStore((state) => state.login);
+  const login = useAuthStore((state) => state.login);
   const showToast = useToastStore((state) => state.show);
 
   const {
@@ -31,38 +32,55 @@ export function LoginForm(): JSX.Element {
     formState: { errors }
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
+
     defaultValues: { identifier: "", password: "", fullName: "" }
   });
 
-  const signInMutation = useMutation({
+  const loginMutation = useMutation({
     mutationFn: (values: FormValues) => loginRequest({ identifier: values.identifier, password: values.password }),
+
+    defaultValues: { email: "", password: "", fullName: "" }
+  });
+
+  const loginMutation = useMutation({
+    mutationFn: (values: FormValues) => loginRequest({ username: values.email, password: values.password }),
     onSuccess: (data) => {
-      loginAction(data.token, data.user);
+      login(data.token, data.user);
       showToast("Login successful");
       navigate("/");
     }
   });
 
-  const signUpMutation = useMutation({
+  const registerMutation = useMutation({
     mutationFn: async (values: FormValues) => {
       const [firstName, ...rest] = (values.fullName ?? "User").split(" ");
+
       return registerRequest({ firstName, lastName: rest.join(" ") || "New", email: values.identifier, password: values.password });
     },
     onSuccess: () => {
       showToast("Register successful. Endi login qiling.");
+
+      return registerRequest({ firstName, lastName: rest.join(" ") || "New", email: values.email, password: values.password });
+    },
+    onSuccess: () => {
+      showToast("Register successful. Please login.");
+
       setMode("login");
     }
   });
 
   const onSubmit = (values: FormValues): void => {
     if (mode === "login") {
-      signInMutation.mutate(values);
+      loginMutation.mutate(values);
       return;
     }
-    signUpMutation.mutate(values);
+    registerMutation.mutate(values);
   };
 
+
   const errorMessage = mode === "login" ? "Login xato: username/email yoki parol noto'g'ri" : "Register xato";
+
+
 
   return (
     <Card className="mx-auto mt-20 w-full max-w-md space-y-4">
@@ -81,19 +99,32 @@ export function LoginForm(): JSX.Element {
           </div>
         )}
         <div>
+
           <Input placeholder="Username yoki email" {...register("identifier")} />
           {errors.identifier && <p className="mt-1 text-xs text-destructive">{errors.identifier.message}</p>}
+
+          <Input placeholder="Email or username" {...register("email")} />
+          {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email.message}</p>}
+
         </div>
         <div>
           <Input placeholder="Password" type="password" {...register("password")} />
           {errors.password && <p className="mt-1 text-xs text-destructive">{errors.password.message}</p>}
         </div>
-        {(signInMutation.isError || signUpMutation.isError) && <p className="text-xs text-destructive">{errorMessage}</p>}
-        <Button className="w-full" type="submit" disabled={signInMutation.isPending || signUpMutation.isPending}>
+
+        {(loginMutation.isError || registerMutation.isError) && <p className="text-xs text-destructive">{errorMessage}</p>}
+
+        {(loginMutation.isError || registerMutation.isError) && <p className="text-xs text-destructive">Request failed</p>}
+
+        <Button className="w-full" type="submit" disabled={loginMutation.isPending || registerMutation.isPending}>
           {mode === "login" ? "Sign in" : "Create account"}
         </Button>
       </form>
+
       <p className="text-xs text-muted-foreground">DummyJSON: emilys / emilyspass. Register qilgan user ham shu brauzerda login bo'ladi.</p>
+
+      <p className="text-xs text-muted-foreground">Use DummyJSON credentials: emilys / emilyspass</p>
+
     </Card>
   );
 }
